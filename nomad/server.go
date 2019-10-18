@@ -91,7 +91,7 @@ const (
 type Server struct {
 	config *Config
 
-	logger log.MultiSinkLogger
+	logger log.InterceptLogger
 
 	// Connection pool to other Nomad servers
 	connPool *pool.ConnPool
@@ -291,7 +291,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	}
 
 	// Create the logger
-	logger := config.Logger.ResetNamed("nomad").(log.MultiSinkLogger)
+	logger := config.Logger.ResetNamedIntercept("nomad")
 
 	// Create the server
 	s := &Server{
