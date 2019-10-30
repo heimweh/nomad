@@ -1,31 +1,3 @@
-data "template_file" "user_data_server" {
-  template = file("${path.root}/user-data-server.sh")
-
-  vars = {
-    server_count = var.server_count
-    region       = var.region
-    retry_join   = var.retry_join
-  }
-}
-
-data "template_file" "user_data_client" {
-  template = file("${path.root}/user-data-client.sh")
-  count    = var.client_count
-
-  vars = {
-    region     = var.region
-    retry_join = var.retry_join
-  }
-}
-
-data "template_file" "nomad_client_config" {
-  template = file("${path.root}/configs/client.hcl")
-}
-
-data "template_file" "nomad_server_config" {
-  template = "}"
-}
-
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.main.image_id
   instance_type          = var.instance_type
@@ -41,14 +13,12 @@ resource "aws_instance" "server" {
     User           = data.aws_caller_identity.current.arn
   }
 
-  user_data            = data.template_file.user_data_server.rendered
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
+  # copy up all provisioning scripts and configs
   provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}",
-    )
-    destination = "/tmp/server.hcl"
+    source      = "shared/"
+    destination = "/ops/shared"
 
     connection {
       host        = coalesce(self.public_ip, self.private_ip)
@@ -57,9 +27,11 @@ resource "aws_instance" "server" {
       private_key = module.keys.private_key_pem
     }
   }
+
   provisioner "remote-exec" {
     inline = [
-      "/ops/shared/config/provision-server.sh ${var.nomad_sha}",
+      "chmod +x /ops/shared/config/provision-server.sh",
+      "/ops/shared/config/provision-server.sh aws ${var.server_count} '${var.nomad_sha}' '${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}'",
     ]
 
     connection {
@@ -94,14 +66,12 @@ resource "aws_instance" "client" {
     delete_on_termination = "true"
   }
 
-  user_data            = element(data.template_file.user_data_client.*.rendered, count.index)
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
+  # copy up all provisioning scripts and configs
   provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}",
-    )
-    destination = "/tmp/client.hcl"
+    source      = "shared/"
+    destination = "/ops/shared"
 
     connection {
       host        = coalesce(self.public_ip, self.private_ip)
@@ -113,7 +83,8 @@ resource "aws_instance" "client" {
 
   provisioner "remote-exec" {
     inline = [
-      "/ops/shared/config/provision-client.sh ${var.nomad_sha}",
+      "chmod +x /ops/shared/config/provision-client.sh",
+      "/ops/shared/config/provision-client.sh aws '${var.nomad_sha}' '${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}'",
     ]
 
     connection {
@@ -124,4 +95,3 @@ resource "aws_instance" "client" {
     }
   }
 }
-
