@@ -84,8 +84,6 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 					select {
 					case d.logCh <- []byte(dropped):
 					default:
-						d.Lock()
-						defer d.Unlock()
 						// Make room for dropped message
 						select {
 						case <-d.logCh:
