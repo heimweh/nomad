@@ -69,6 +69,7 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 				received += string(recv)
 				if strings.Contains(received, "[WARN] Monitor dropped 90 logs during monitor request") {
 					close(passed)
+					return
 				}
 			}
 		}
