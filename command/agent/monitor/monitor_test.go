@@ -22,20 +22,23 @@ func TestMonitor_Start(t *testing.T) {
 	})
 
 	closeCh := make(chan struct{})
-	defer close(closeCh)
 
 	logCh := m.Start(closeCh)
+
 	go func() {
-		for {
-			select {
-			case log := <-logCh:
-				require.Contains(t, string(log), "[DEBUG] test log")
-			case <-time.After(1 * time.Second):
-				t.Fatal("Expected to receive from log channel")
-			}
-		}
+		logger.Debug("test log")
+		time.Sleep(10 * time.Millisecond)
 	}()
-	logger.Debug("test log")
+
+	for {
+		select {
+		case log := <-logCh:
+			require.Contains(t, string(log), "[DEBUG] test log")
+			return
+		case <-time.After(3 * time.Second):
+			t.Fatal("Expected to receive from log channel")
+		}
+	}
 }
 
 // Ensure number of dropped messages are logged
@@ -69,7 +72,6 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 				received += string(recv)
 				if strings.Contains(received, "[WARN] Monitor dropped 90 logs during monitor request") {
 					close(passed)
-					return
 				}
 			}
 		}
