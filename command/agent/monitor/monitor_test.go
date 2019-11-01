@@ -61,7 +61,6 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 	}
 
 	received := ""
-
 	passed := make(chan struct{})
 	go func() {
 		for {
